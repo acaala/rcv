@@ -47,7 +47,6 @@ fn process_image(input_file: &str, output_path: &str, quality: f32) -> Result<()
         }
     };
 
-    println!("{}", quality);
     let webp = encoder.encode(quality);
 
     let file_name = Path::new(input_file).file_name().unwrap_or_else(|| {
