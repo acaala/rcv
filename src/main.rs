@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    process,
-};
+use std::{fs, path::Path, process};
 
 use anyhow::{bail, Result};
 use clap::{arg, command, Parser};
