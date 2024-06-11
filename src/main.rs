@@ -29,24 +29,22 @@ fn main() -> Result<()> {
     }
 
     let output_path = Path::new(&args.output_path);
-    fs::create_dir_all(&output_path).unwrap_or_else(|_| {
+    fs::create_dir_all(output_path).unwrap_or_else(|_| {
         eprintln!("Failed to create output path");
         process::exit(1)
     });
 
     match args.directory.is_some() {
         true => {
-            if let Err(_) = WebpConverter::process_directory(
-                &args.directory.unwrap(),
-                output_path,
-                args.quality,
-            ) {
+            if WebpConverter::process_directory(&args.directory.unwrap(), output_path, args.quality)
+                .is_err()
+            {
                 bail!("Error: Failed to open directory");
             }
         }
         false => {
             if let Err(err) =
-                WebpConverter::process_image(&args.input_file.unwrap(), &output_path, args.quality)
+                WebpConverter::process_image(&args.input_file.unwrap(), output_path, args.quality)
             {
                 bail!("Failed to process file - {:?}", err);
             }

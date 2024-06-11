@@ -32,7 +32,7 @@ impl WebpConverter {
 
         let new_file_size = fs::metadata(output_path).unwrap().len();
         let percentage_change =
-            ((file_size as f64 - new_file_size as f64) / file_size as f64) * 100 as f64;
+            ((file_size as f64 - new_file_size as f64) / file_size as f64) * 100_f64;
         println!(
             "Saved {:?} KB ({:?}%)",
             (file_size - new_file_size) / 1024,
@@ -43,7 +43,7 @@ impl WebpConverter {
     }
 
     pub fn process_directory(dir: &str, output_path: &Path, quality: f32) -> Result<(), Error> {
-        let files = Self::get_files_in_dir(&dir)?;
+        let files = Self::get_files_in_dir(dir)?;
 
         for file in files {
             if let Err(_) =
