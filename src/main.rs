@@ -12,18 +12,21 @@ struct Args {
 
     #[arg(short, long)]
     output_path: String,
+
+    #[arg(short, long, default_value_t = 75f32)]
+    quality: f32,
 }
 
 fn main() {
     let args = Args::parse();
 
-    if let Err(e) = process_image(&args.input_file, &args.output_path) {
+    if let Err(e) = process_image(&args.input_file, &args.output_path, args.quality) {
         eprintln!("Error processing image: {:?}", e);
         process::exit(1)
     }
 }
 
-fn process_image(input_file: &str, output_path: &str) -> Result<(), Error> {
+fn process_image(input_file: &str, output_path: &str, quality: f32) -> Result<(), Error> {
     let img = image::open(input_file);
 
     let img = match img {
@@ -44,7 +47,8 @@ fn process_image(input_file: &str, output_path: &str) -> Result<(), Error> {
         }
     };
 
-    let webp = encoder.encode(70f32);
+    println!("{}", quality);
+    let webp = encoder.encode(quality);
 
     let file_name = Path::new(input_file).file_name().unwrap_or_else(|| {
         println!("Cannot get name from file using default");
@@ -58,4 +62,20 @@ fn process_image(input_file: &str, output_path: &str) -> Result<(), Error> {
     fs::write(&output_path, &*webp).unwrap();
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_process_image() {
+        let input_file = "test_img.jpg";
+        let output_path = "./assets";
+        let quality = 70.0;
+
+        let result = process_image(input_file, output_path, quality);
+
+        assert!(result.is_ok())
+    }
 }
