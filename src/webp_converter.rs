@@ -46,9 +46,7 @@ impl WebpConverter {
         let files = Self::get_files_in_dir(dir)?;
 
         for file in files {
-            if let Err(_) =
-                WebpConverter::process_image(file.to_str().unwrap(), output_path, quality)
-            {
+            if WebpConverter::process_image(file.to_str().unwrap(), output_path, quality).is_err() {
                 eprintln!(
                     "Error processing file: {:?} - Skipping...",
                     file.file_name().unwrap()
