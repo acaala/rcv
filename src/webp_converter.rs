@@ -42,7 +42,12 @@ impl WebpConverter {
         Ok(())
     }
 
-    pub fn process_directory(dir: &str, output_path: &Path, quality: f32) -> Result<(), Error> {
+    pub fn process_directory(
+        dir: &str,
+        output_path: &Path,
+        quality: f32,
+        count: &mut u64,
+    ) -> Result<(), Error> {
         let files = Self::get_files_in_dir(dir)?;
 
         for file in files {
@@ -52,6 +57,8 @@ impl WebpConverter {
                     file.file_name().unwrap()
                 );
             }
+
+            *count += 1;
         }
 
         Ok(())

@@ -1,4 +1,4 @@
-use std::{fs, path::Path, process};
+use std::{fs, path::Path, process, time::Instant};
 
 use anyhow::{bail, Result};
 use clap::{arg, command, Parser};
@@ -33,14 +33,26 @@ fn main() -> Result<()> {
         eprintln!("Failed to create output path");
         process::exit(1)
     });
-
+    let start = Instant::now();
     match args.directory.is_some() {
         true => {
-            if WebpConverter::process_directory(&args.directory.unwrap(), output_path, args.quality)
-                .is_err()
+            let mut count = 0;
+            if WebpConverter::process_directory(
+                &args.directory.unwrap(),
+                output_path,
+                args.quality,
+                &mut count,
+            )
+            .is_err()
             {
                 bail!("Error: Failed to open directory");
             }
+
+            println!(
+                "Converted {} images in {} seconds",
+                count,
+                start.elapsed().as_secs()
+            );
         }
         false => {
             if let Err(err) =
@@ -48,6 +60,8 @@ fn main() -> Result<()> {
             {
                 bail!("Failed to process file - {:?}", err);
             }
+
+            println!("Converted in {} seconds", start.elapsed().as_secs());
         }
     }
 
@@ -74,8 +88,9 @@ mod tests {
         let directory = "test_assets";
         let output_path = Path::new("./assets");
         let quality = 70.0;
+        let mut count = 0;
 
-        let result = WebpConverter::process_directory(directory, output_path, quality);
+        let result = WebpConverter::process_directory(directory, output_path, quality, &mut count);
 
         assert!(result.is_ok())
     }
