@@ -1,14 +1,23 @@
-use std::{ffi::OsStr, fs, path::Path, process};
+use std::{
+    ffi::OsStr,
+    fs,
+    path::{Path, PathBuf},
+    process,
+};
 
-use anyhow::{Error, Result};
+use anyhow::{anyhow, bail, Context, Error, Result};
 use clap::{arg, command, Parser};
+use image::ImageError;
 use webp::Encoder;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    #[arg(short, long)]
-    input_file: String,
+    #[arg(short, long, default_value = None)]
+    input_file: Option<String>,
+
+    #[arg(short, long, default_value = None)]
+    directory: Option<String>,
 
     #[arg(short, long)]
     output_path: String,
@@ -17,35 +26,40 @@ struct Args {
     quality: f32,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let args = Args::parse();
 
-    if let Err(e) = process_image(&args.input_file, &args.output_path, args.quality) {
-        eprintln!("Error processing image: {:?}", e);
-        process::exit(1)
+    if args.input_file.is_none() && args.directory.is_none() {
+        eprintln!("Error: An input file (--input) or a directory (--directory) must be used");
+        process::exit(0)
     }
+
+    let output_path = Path::new(&args.output_path);
+    fs::create_dir_all(&output_path).unwrap_or_else(|_| {
+        eprintln!("Failed to create output path");
+        process::exit(1)
+    });
+
+    match args.directory.is_some() {
+        true => {
+            if let Err(_) = process_directory(&args.directory.unwrap(), output_path, args.quality) {
+                bail!("Error: Failed to open directory");
+            }
+        }
+        false => {
+            if let Err(err) = process_image(&args.input_file.unwrap(), &output_path, args.quality) {
+                bail!("Failed to process file - {:?}", err);
+            }
+        }
+    }
+
+    Ok(())
 }
 
-fn process_image(input_file: &str, output_path: &str, quality: f32) -> Result<(), Error> {
-    let img = image::open(input_file);
+fn process_image(input_file: &str, output_path: &Path, quality: f32) -> Result<(), Error> {
+    let img = image::open(input_file)?;
 
-    let img = match img {
-        Ok(i) => i,
-        Err(_e) => {
-            eprintln!("Error: No such image");
-            process::exit(1)
-        }
-    };
-
-    let encoder = Encoder::from_image(&img);
-
-    let encoder = match encoder {
-        Ok(e) => e,
-        Err(err) => {
-            eprintln!("Error encoding image: {:?}", err);
-            process::exit(1)
-        }
-    };
+    let encoder = Encoder::from_image(&img).map_err(|_| anyhow!("Failed to create encoder"))?;
 
     let webp = encoder.encode(quality);
 
@@ -54,26 +68,67 @@ fn process_image(input_file: &str, output_path: &str, quality: f32) -> Result<()
         OsStr::new("default")
     });
 
-    let output_dir = Path::new(&output_path);
-    fs::create_dir_all(&output_dir)?;
-
-    let output_path = Path::new(output_dir).join(file_name).with_extension("webp");
+    let output_path = output_path.join(file_name).with_extension("webp");
     fs::write(&output_path, &*webp).unwrap();
 
     Ok(())
 }
 
+fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() && is_image_file(&path) {
+            files.push(path);
+        }
+    }
+
+    Ok(files)
+}
+
+fn is_image_file(file: &Path) -> bool {
+    image::open(file).is_ok()
+}
+
+fn process_directory(dir: &str, output_path: &Path, quality: f32) -> Result<()> {
+    let files = get_files_in_dir(&dir)?;
+
+    for file in files {
+        if let Err(_) = process_image(file.to_str().unwrap(), output_path, quality) {
+            eprintln!(
+                "Error processing file: {:?} - Skipping...",
+                file.file_name().unwrap()
+            );
+        }
+    }
+
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_process_image() {
-        let input_file = "test_img.jpg";
-        let output_path = "./assets";
+        let input_file = "./test_assets/test_img.jpg";
+        let output_path = Path::new("./assets");
         let quality = 70.0;
 
         let result = process_image(input_file, output_path, quality);
+
+        assert!(result.is_ok())
+    }
+
+    #[test]
+    fn test_process_directory() {
+        let directory = "test_assets";
+        let output_path = Path::new("./assets");
+        let quality = 70.0;
+
+        let result = process_directory(directory, output_path, quality);
 
         assert!(result.is_ok())
     }
