@@ -78,6 +78,11 @@ mod tests {
         let output_path = Path::new("./assets");
         let quality = 70.0;
 
+        fs::create_dir_all(output_path).unwrap_or_else(|_| {
+            eprintln!("Failed to create output path");
+            process::exit(1)
+        });
+
         let result = WebpConverter::process_image(input_file, output_path, quality);
 
         assert!(result.is_ok())
@@ -89,6 +94,11 @@ mod tests {
         let output_path = Path::new("./assets");
         let quality = 70.0;
         let mut count = 0;
+
+        fs::create_dir_all(output_path).unwrap_or_else(|_| {
+            eprintln!("Failed to create output path");
+            process::exit(1)
+        });
 
         let result = WebpConverter::process_directory(directory, output_path, quality, &mut count);
 
