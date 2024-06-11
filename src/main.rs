@@ -1,14 +1,12 @@
 use std::{
-    ffi::OsStr,
     fs,
     path::{Path, PathBuf},
     process,
 };
 
-use anyhow::{anyhow, bail, Context, Error, Result};
+use anyhow::{bail, Result};
 use clap::{arg, command, Parser};
-use image::ImageError;
-use webp::Encoder;
+use rcv::webp_converter::WebpConverter;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -47,43 +45,13 @@ fn main() -> Result<()> {
             }
         }
         false => {
-            if let Err(err) = process_image(&args.input_file.unwrap(), &output_path, args.quality) {
+            if let Err(err) =
+                WebpConverter::process_image(&args.input_file.unwrap(), &output_path, args.quality)
+            {
                 bail!("Failed to process file - {:?}", err);
             }
         }
     }
-
-    Ok(())
-}
-
-fn process_image(input_file: &str, output_path: &Path, quality: f32) -> Result<(), Error> {
-    let image_path = Path::new(input_file);
-    let file_size = fs::metadata(image_path).unwrap().len();
-
-    let img = image::open(image_path)?;
-
-    let file_name = image_path.file_name().unwrap_or_else(|| {
-        println!("Cannot get name from file using default");
-        OsStr::new("default")
-    });
-
-    println!("Converting {:?}", file_name);
-
-    let encoder = Encoder::from_image(&img).map_err(|_| anyhow!("Failed to create encoder"))?;
-
-    let webp = encoder.encode(quality);
-
-    let output_path = output_path.join(file_name).with_extension("webp");
-    fs::write(&output_path, &*webp).unwrap();
-
-    let new_file_size = fs::metadata(output_path).unwrap().len();
-    let percentage_change =
-        ((file_size as f64 - new_file_size as f64) / file_size as f64) * 100 as f64;
-    println!(
-        "Saved {:?} KB ({:?}%)",
-        (file_size - new_file_size) / 1024,
-        percentage_change as u64
-    );
 
     Ok(())
 }
@@ -111,7 +79,7 @@ fn process_directory(dir: &str, output_path: &Path, quality: f32) -> Result<()> 
     let files = get_files_in_dir(&dir)?;
 
     for file in files {
-        if let Err(_) = process_image(file.to_str().unwrap(), output_path, quality) {
+        if let Err(_) = WebpConverter::process_image(file.to_str().unwrap(), output_path, quality) {
             eprintln!(
                 "Error processing file: {:?} - Skipping...",
                 file.file_name().unwrap()
@@ -131,7 +99,7 @@ mod tests {
         let output_path = Path::new("./assets");
         let quality = 70.0;
 
-        let result = process_image(input_file, output_path, quality);
+        let result = WebpConverter::process_image(input_file, output_path, quality);
 
         assert!(result.is_ok())
     }
