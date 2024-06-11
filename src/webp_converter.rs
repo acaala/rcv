@@ -1,4 +1,8 @@
-use std::{ffi::OsStr, fs, path::Path};
+use std::{
+    ffi::OsStr,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{anyhow, Error};
 use webp::Encoder;
@@ -36,5 +40,41 @@ impl WebpConverter {
         );
 
         Ok(())
+    }
+
+    pub fn process_directory(dir: &str, output_path: &Path, quality: f32) -> Result<(), Error> {
+        let files = Self::get_files_in_dir(&dir)?;
+
+        for file in files {
+            if let Err(_) =
+                WebpConverter::process_image(file.to_str().unwrap(), output_path, quality)
+            {
+                eprintln!(
+                    "Error processing file: {:?} - Skipping...",
+                    file.file_name().unwrap()
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>, Error> {
+        let mut files = Vec::new();
+
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_file() && Self::is_image_file(&path) {
+                files.push(path);
+            }
+        }
+
+        Ok(files)
+    }
+
+    fn is_image_file(file: &Path) -> bool {
+        image::open(file).is_ok()
     }
 }

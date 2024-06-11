@@ -40,7 +40,11 @@ fn main() -> Result<()> {
 
     match args.directory.is_some() {
         true => {
-            if let Err(_) = process_directory(&args.directory.unwrap(), output_path, args.quality) {
+            if let Err(_) = WebpConverter::process_directory(
+                &args.directory.unwrap(),
+                output_path,
+                args.quality,
+            ) {
                 bail!("Error: Failed to open directory");
             }
         }
@@ -56,39 +60,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-
-        if path.is_file() && is_image_file(&path) {
-            files.push(path);
-        }
-    }
-
-    Ok(files)
-}
-
-fn is_image_file(file: &Path) -> bool {
-    image::open(file).is_ok()
-}
-
-fn process_directory(dir: &str, output_path: &Path, quality: f32) -> Result<()> {
-    let files = get_files_in_dir(&dir)?;
-
-    for file in files {
-        if let Err(_) = WebpConverter::process_image(file.to_str().unwrap(), output_path, quality) {
-            eprintln!(
-                "Error processing file: {:?} - Skipping...",
-                file.file_name().unwrap()
-            );
-        }
-    }
-
-    Ok(())
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,7 +81,7 @@ mod tests {
         let output_path = Path::new("./assets");
         let quality = 70.0;
 
-        let result = process_directory(directory, output_path, quality);
+        let result = WebpConverter::process_directory(directory, output_path, quality);
 
         assert!(result.is_ok())
     }
