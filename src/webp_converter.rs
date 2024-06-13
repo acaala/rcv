@@ -27,7 +27,7 @@ impl WebpConverter {
         let webp = encoder.encode(quality);
 
         let output_path = output_path.join(file_name).with_extension("webp");
-        fs::write(&output_path, &*webp).unwrap();
+        fs::write(output_path, &*webp).unwrap();
 
         Ok(())
     }
