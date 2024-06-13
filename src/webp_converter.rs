@@ -2,9 +2,12 @@ use std::{
     ffi::OsStr,
     fs,
     path::{Path, PathBuf},
+    thread,
 };
 
 use anyhow::{anyhow, Error};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use webp::Encoder;
 
 pub struct WebpConverter;
@@ -21,7 +24,7 @@ impl WebpConverter {
             OsStr::new("default")
         });
 
-        println!("Converting {:?}", file_name);
+        // println!("Converting {:?}", file_name);
 
         let encoder = Encoder::from_image(&img).map_err(|_| anyhow!("Failed to create encoder"))?;
 
@@ -33,11 +36,11 @@ impl WebpConverter {
         let new_file_size = fs::metadata(output_path).unwrap().len();
         let percentage_change =
             ((file_size as f64 - new_file_size as f64) / file_size as f64) * 100_f64;
-        println!(
-            "Saved {:?} KB ({:?}%)",
-            (file_size - new_file_size) / 1024,
-            percentage_change as u64
-        );
+        // println!(
+        //     "Saved {:?} KB ({:?}%)",
+        //     (file_size - new_file_size) / 1024,
+        //     percentage_change as u64
+        // );
 
         Ok(())
     }
@@ -50,23 +53,34 @@ impl WebpConverter {
     ) -> Result<(), Error> {
         let files = Self::get_files_in_dir(dir)?;
 
-        for file in files {
-            if WebpConverter::process_image(file.to_str().unwrap(), output_path, quality).is_err() {
+        let m = ProgressBar::new(files.len() as u64);
+        let sty = ProgressStyle::with_template(
+            "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} Converting..",
+        )
+        .unwrap()
+        .progress_chars("##-");
+        m.set_style(sty);
+
+        files.par_iter().for_each(|file| {
+            let file_name = file.to_str().unwrap();
+
+            if WebpConverter::process_image(file_name, output_path, quality).is_err() {
                 eprintln!(
                     "Error processing file: {:?} - Skipping...",
                     file.file_name().unwrap()
                 );
             }
+            m.inc(1);
+        });
 
-            *count += 1;
-        }
+        *count = files.len() as u64;
 
         Ok(())
     }
 
     fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>, Error> {
         let mut files = Vec::new();
-
+        println!("Looking for images..");
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -75,6 +89,7 @@ impl WebpConverter {
                 files.push(path);
             }
         }
+        println!("Found {} images", files.len());
 
         Ok(files)
     }
